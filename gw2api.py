@@ -96,8 +96,8 @@ def _request(json_location, **args):
     # Makes a request on the Guild Wars 2 API.
     url = 'https://api.guildwars2.com/v2/' + json_location + '?' + '&'.join(str(argument) + '=' + str(value) for argument, value in args.items())
     response = urllib2.urlopen(url).read()
-    response = response.replace(':true', ':True')
-    response = response.replace(':false', ':False')
+    response = response.replace(': true', ': True')
+    response = response.replace(': false', ': False')
     response = response.replace('null', 'None')
     exec 'data = %s' % response in globals(), locals()
     return data
