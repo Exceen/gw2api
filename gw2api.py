@@ -11,7 +11,10 @@
 import os
 
 # Import proper urllib and JSON library
-import urllib, urllib2
+import urllib.request, urllib.parse, urllib.error, urllib.request, urllib.error, urllib.parse
+import requests
+import json
+
 try:
     import json
 except ImportError:
@@ -27,11 +30,14 @@ def get_item_details(id):
     # Get details of specific item.
     return _request('items', id=id)
 
+def get_delivery(api_key=api_key):
+    return _request('commerce/delivery', access_token=api_key)
+
 def get_characters(api_key=api_key):
     return _request('characters', access_token=api_key)
 
 def get_character_details(id, api_key=api_key):
-    return _request('characters/' + urllib.quote(str(id)), access_token=api_key)
+    return _request('characters/' + urllib.parse.quote(str(id)), access_token=api_key)
 
 def get_listings(id):
     return _request('commerce/listings', id=id)
@@ -94,34 +100,62 @@ def get_quaggans(**args):
 
 def _request(json_location, **args):
     # Makes a request on the Guild Wars 2 API.
-    url = 'https://api.guildwars2.com/v2/' + json_location + '?' + '&'.join(str(argument) + '=' + str(value) for argument, value in args.items())
-    response = urllib2.urlopen(url).read()
-    response = response.replace(': true', ': True')
-    response = response.replace(': false', ': False')
-    response = response.replace('null', 'None')
-    exec 'data = %s' % response in globals(), locals()
-    return data
+    
+    headers = {}
+    if args is not None and 'access_token' in args:
+        headers['Authorization'] = 'Bearer ' + args['access_token'].replace('\n', '')
+        del args['access_token']
+        
+    url = 'https://api.guildwars2.com/v2/' + json_location
+
+    if len(args) > 0:
+        url += '?' + '&'.join(str(argument) + '=' + str(value) for argument, value in list(args.items()))
+
+    response = requests.get(url, headers=headers)
+    response = response.text
+    #response = response.replace(': true', ': True')
+    #response = response.replace(': false', ': False')
+    #response = response.replace('null', 'None')
+    return json.loads(response)
+    #exec('data = %s' % response, globals(), locals())
+#    data = response
+#    return data
+
+# def find_item_id_by_name(queue):
+#     # url = 'http://gw2tno.com/api/finditemidbyname/' + urllib.quote(queue)
+#     data = {}
+#     results = []
+#     page = 1
+#     last_page = 1
+
+#     while page <= last_page:
+#         url = 'http://www.gw2spidy.com/api/v0.9/json/item-search/' + urllib.quote(queue) + '/'
+#         url = url + str(page)
+
+#         response = urllib2.urlopen(url).read()
+
+#         if response == 'null':
+#             return []
+#         exec 'data.update(%s)' % response in globals(), locals()
+#         if type(data) == dict:
+#             results.extend(data['results'])
+
+#             last_page = data['last_page']
+#             page += 1
+
+#     return results
+
 
 def find_item_id_by_name(queue):
-    # url = 'http://gw2tno.com/api/finditemidbyname/' + urllib.quote(queue)
-    data = {}
     results = []
-    page = 1
-    last_page = 1
+    url = 'http://api.gw2tp.com/1/bulk/items.csv'
 
-    while page <= last_page:
-        url = 'http://www.gw2spidy.com/api/v0.9/json/item-search/' + urllib.quote(queue) + '/'
-        url = url + str(page)
+    response = requests.get(url, headers={'User-Agent' : 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1941.0 Safari/537.36'})
+    csv = response.text.split('\n')
 
-        response = urllib2.urlopen(url).read()
-
-        if response == 'null':
-            return []
-        exec 'data.update(%s)' % response in globals(), locals()
-        if type(data) == dict:
-            results.extend(data['results'])
-
-            last_page = data['last_page']
-            page += 1
+    for line in csv:
+        if '"' + queue.lower() in line.lower():
+            itemid = int(line.split(',')[0])
+            results.append({'data_id': itemid})
 
     return results
